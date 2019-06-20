@@ -5,7 +5,6 @@ import json
 import getArea
 
 
-
 def create_image_info(image_id, file_name, image_size,
                       date_captured=datetime.datetime.utcnow().isoformat(' '),
                       license_id=1, coco_url="", flickr_url=""):
@@ -22,6 +21,7 @@ def create_image_info(image_id, file_name, image_size,
     }
 
     return image_info
+
 
 def create_annotation_info(annotation_id, image_id, category_id, is_crowd,
                            area, bounding_box, segmentation):
@@ -54,13 +54,14 @@ def convert(imgdir, annpath):
     :return: coco_output is a dictionary of coco style which you could dump it into a json file
     as for keywords 'info','licenses','categories',you should modify them manually
     '''
+
     coco_output = {}
     coco_output['info'] = {
         "description": "Example Dataset",
-        "url": "https://github.com/waspinator/pycococreator",
+        "url": "https://triasoft.wordpress.com/",
         "version": "0.1.0",
-        "year": 2018,
-        "contributor": "waspinator",
+        "year": 2019,
+        "contributor": "schwabse",
         "date_created": datetime.datetime.utcnow().isoformat(' ')
     }
     coco_output['licenses'] = [
@@ -72,13 +73,13 @@ def convert(imgdir, annpath):
     ]
     coco_output['categories'] = [{
         'id': 1,
-        'name': 'rib',
-        'supercategory': 'bone',
+        'name': 'vertebrae',
+        'supercategory': 'spine',
     },
         {
             'id': 2,
-            'name': 'clavicle',
-            'supercategory': 'bone',
+            'name': 'vertebrae',
+            'supercategory': 'spine',
         }
     ]
     coco_output['images'] = []
@@ -87,26 +88,38 @@ def convert(imgdir, annpath):
     ann = json.load(open(annpath))
     # annotations id start from zero
     ann_id = 0
-    #in VIA annotations, keys are image name
+
+    # in VIA annotations, keys are image name
     for img_id, key in enumerate(ann.keys()):
 
         filename = ann[key]['filename']
         img = cv2.imread(imgdir+filename)
+
         # make image info and storage it in coco_output['images']
         image_info = create_image_info(img_id, os.path.basename(filename), img.shape[:2])
         coco_output['images'].append(image_info)
+
         regions = ann[key]["regions"]
         # for one image ,there are many regions,they share the same img id
         for region in regions:
-            cat = region['region_attributes']['label']
-            assert cat in ['rib', 'clavicle']
+
+            cur = regions[region]
+
+            try:
+                cat = cur['region_attributes']['label']
+                print(cat)
+                assert cat in ['vertebrae', 'S']
+            except:
+                cat = ''
+
             if cat == 'rib':
                 cat_id = 1
             else:
                 cat_id = 2
             iscrowd = 0
-            points_x = region['shape_attributes']['all_points_x']
-            points_y = region['shape_attributes']['all_points_y']
+
+            points_x = cur['shape_attributes']['all_points_x']
+            points_y = cur['shape_attributes']['all_points_y']
             area = getArea.GetAreaOfPolyGon(points_x, points_y)
             min_x = min(points_x)
             max_x = max(points_x)
@@ -114,6 +127,7 @@ def convert(imgdir, annpath):
             max_y = max(points_y)
             box = [min_x, min_y, max_x-min_x, max_y-min_y]
             segmentation = get_segmenation(points_x, points_y)
+
             # make annotations info and storage it in coco_output['annotations']
             ann_info = create_annotation_info(ann_id, img_id, cat_id, iscrowd, area, box, segmentation)
             coco_output['annotations'].append(ann_info)
@@ -121,6 +135,17 @@ def convert(imgdir, annpath):
             
     return coco_output
 
+str_path_to_via_file = '/test.json'
+str_path_to_images = '/'
+wd = os.getcwd()
 
+path_via = os.path.join(wd + str_path_to_via_file)
+path_img = os.path.join(wd + str_path_to_images)
 
+coco_json = convert(path_img, path_via )
 
+with open('output.json', 'w') as outfile:
+    json.dump(coco_json, outfile)
+
+print('Sucessfully dumped in ' + wd + '\output.json \n')
+print(coco_json)

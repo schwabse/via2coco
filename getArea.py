@@ -8,8 +8,6 @@ class Point():
         self.y = y
 
 
-
-
 def GetAreaOfPolyGon(points_x, points_y):
     points = []
     for index in range(len(points_x)):
